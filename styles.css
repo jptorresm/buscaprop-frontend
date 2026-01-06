@@ -1,0 +1,94 @@
+* {
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  padding: 16px;
+  border-bottom: 1px solid #ddd;
+  background: #fff;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+header p {
+  margin: 4px 0 0;
+  color: #555;
+}
+
+main#chat {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  max-width: 720px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.user {
+  background: #dbeafe;
+  align-self: flex-end;
+}
+
+.assistant {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+}
+
+.results {
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.result-card {
+  border-bottom: 1px solid #eee;
+  padding: 8px 0;
+}
+
+.result-card:last-child {
+  border-bottom: none;
+}
+
+footer {
+  border-top: 1px solid #ddd;
+  background: #fff;
+  padding: 12px;
+}
+
+#chat-form {
+  display: flex;
+  gap: 8px;
+}
+
+#user-input {
+  flex: 1;
+  padding: 10px;
+  font-size: 16px;
+}
+
+button {
+  padding: 10px 16px;
+  font-size: 16px;
+  cursor: pointer;
+}
