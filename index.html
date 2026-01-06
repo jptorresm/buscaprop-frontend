@@ -2,31 +2,17 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Buscaprop.cl — Busca propiedades conversando</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="styles.css" />
+  <title>Buscaprop</title>
 </head>
 <body>
 
-  <header>
-    <h1>Buscaprop.cl</h1>
-    <p>Busca propiedades en Chile conversando con IA</p>
-  </header>
+  <form id="chat-form">
+    <input id="chat-input" placeholder="Escribe tu búsqueda..." />
+    <button type="submit">Enviar</button>
+  </form>
 
-  <main id="chat"></main>
+  <pre id="chat-output"></pre>
 
-  <footer>
-    <form id="chat-form">
-      <input
-        id="user-input"
-        type="text"
-        placeholder="Ej: depto en Providencia, arriendo hasta 900 mil"
-        autocomplete="off"
-      />
-      <button type="submit">Enviar</button>
-    </form>
-  </footer>
-
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
