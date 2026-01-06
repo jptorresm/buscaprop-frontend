@@ -3,12 +3,12 @@
 // ===============================
 
 // ⚠️ SOLO PARA PRUEBAS.
-// Luego mover esta key a backend.
-const OPENAI_API_KEY = "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";
+// REVOCA esta key y usa una nueva luego.
+const OPENAI_API_KEY = "PEGA_AQUI_TU_KEY_NUEVA";
 
 const BACKEND_URL = "https://dry-cherry-9711.jptorresmendoza.workers.dev/";
 
-// Prompt del agente (AQUÍ va el prompt, no en ChatGPT)
+// Prompt del agente
 const SYSTEM_PROMPT = `
 Eres Buscaprop, un asistente inmobiliario en Chile.
 
@@ -55,10 +55,9 @@ let messages = [
 // ===============================
 
 export async function sendMessageToBuscaprop(userText) {
-  // Agregar mensaje del usuario
   messages.push({ role: "user", content: userText });
 
-  // 1️⃣ Llamar a GPT
+  // 1️⃣ Llamada a OpenAI
   const gptResponse = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -79,20 +78,28 @@ export async function sendMessageToBuscaprop(userText) {
   const gptData = await gptResponse.json();
   const reply = gptData.choices[0].message.content.trim();
 
-  // 2️⃣ ¿El GPT decidió buscar?
+  // 2️⃣ ¿GPT decidió buscar?
   if (reply.startsWith("{")) {
     try {
       const parsed = JSON.parse(reply);
 
       if (parsed.action === "search") {
-        // Llamar a tu backend REAL
+        // 🔑 CLAVE: backend recibe SOLO message
+        const searchMessage = `
+Buscar propiedades con:
+comuna: ${parsed.filters.comuna}
+operacion: ${parsed.filters.operacion}
+precio_max_clp: ${parsed.filters.precio_max_clp ?? "no definido"}
+precio_max_uf: ${parsed.filters.precio_max_uf ?? "no definido"}
+        `.trim();
+
         const backendResponse = await fetch(BACKEND_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            filters: parsed.filters
+            message: searchMessage
           })
         });
 
@@ -102,7 +109,6 @@ export async function sendMessageToBuscaprop(userText) {
 
         const results = await backendResponse.json();
 
-        // Guardar el mensaje del GPT (JSON) en el historial
         messages.push({ role: "assistant", content: reply });
 
         return {
@@ -111,11 +117,11 @@ export async function sendMessageToBuscaprop(userText) {
         };
       }
     } catch (e) {
-      // Si el JSON falla, tratamos la respuesta como texto normal
+      // Si el JSON falla, se trata como texto normal
     }
   }
 
-  // 3️⃣ Respuesta conversacional normal
+  // 3️⃣ Respuesta conversacional
   messages.push({ role: "assistant", content: reply });
 
   return {
