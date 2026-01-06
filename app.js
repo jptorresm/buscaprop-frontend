@@ -4,6 +4,9 @@ const chat = document.getElementById("chat");
 const form = document.getElementById("chat-form");
 const input = document.getElementById("user-input");
 
+// 🔑 session_id único por carga
+const sessionId = crypto.randomUUID();
+
 function addMessage(text, sender = "assistant") {
   const div = document.createElement("div");
   div.className = `message ${sender}`;
@@ -42,7 +45,10 @@ async function sendMessage(message) {
     const res = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message })
+      body: JSON.stringify({
+        message,
+        session_id: sessionId
+      })
     });
 
     const data = await res.json();
@@ -55,16 +61,13 @@ async function sendMessage(message) {
       addMessage(`Encontré ${data.results.length} propiedades:`, "assistant");
       addResults(data.results);
     } 
-    else if (data.type === "error") {
-      addMessage("⚠️ Ocurrió un error.", "assistant");
-    } 
     else {
       addMessage("⚠️ Respuesta no reconocida.", "assistant");
     }
 
   } catch (err) {
     console.error(err);
-    addMessage("⚠️ No pude conectar con el servidor.", "assistant");
+    addMessage("⚠️ Error de conexión.", "assistant");
   }
 }
 
