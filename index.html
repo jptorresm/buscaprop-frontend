@@ -2,17 +2,48 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Buscaprop</title>
+  <title>Buscaprop.cl</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </head>
 <body>
 
-  <form id="chat-form">
-    <input id="chat-input" placeholder="Escribe tu búsqueda..." />
-    <button type="submit">Enviar</button>
-  </form>
+def cumple_precio(prop: dict, filtros: dict) -> bool:
+    """
+    Regla FINAL:
+    - Si la propiedad no publica precio → se descarta cuando hay filtro de precio
+    - Venta → comparar en UF (preferido)
+    - Arriendo → comparar en CLP (preferido)
+    """
 
-  <pre id="chat-output"></pre>
+    operacion = filtros.get("operacion")
+    max_clp = filtros.get("precio_max_clp")
+    max_uf = filtros.get("precio_max_uf")
 
-  <script type="module" src="app.js"></script>
+    precio = prop.get("precio", {})
+
+    # Si hay filtro de precio pero el precio no es visible → descartar
+    if (max_clp or max_uf) and not precio.get("visible"):
+        return False
+
+    # -----------------------
+    # VENTA → UF
+    # -----------------------
+    if operacion == "venta" and max_uf is not None:
+        valor = precio.get("uf") or precio.get("valor")
+        if valor is None:
+            return False
+        return valor <= max_uf
+
+    # -----------------------
+    # ARRIENDO → CLP
+    # -----------------------
+    if operacion == "arriendo" and max_clp is not None:
+        valor = precio.get("clp") or precio.get("valor")
+        if valor is None:
+            return False
+        return valor <= max_clp
+
+    return True
+
 </body>
 </html>
