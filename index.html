@@ -4,46 +4,120 @@
   <meta charset="UTF-8" />
   <title>Buscaprop.cl</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #202124;
+    }
+    .container {
+      min-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      font-weight: 500;
+      margin-bottom: 24px;
+    }
+    input {
+      width: 100%;
+      max-width: 640px;
+      padding: 16px 20px;
+      font-size: 16px;
+      border: 1px solid #dfe1e5;
+      border-radius: 24px;
+      outline: none;
+    }
+    button {
+      margin-top: 16px;
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: 1px solid #dfe1e5;
+      background: #f8f9fa;
+      cursor: pointer;
+    }
+    #response {
+      margin-top: 32px;
+      max-width: 720px;
+      font-size: 14px;
+      line-height: 1.6;
+      text-align: left;
+      white-space: pre-wrap;
+    }
+    .muted {
+      color: #666;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+  </style>
 </head>
+
 <body>
 
-def cumple_precio(prop: dict, filtros: dict) -> bool:
-    """
-    Regla FINAL:
-    - Si la propiedad no publica precio → se descarta cuando hay filtro de precio
-    - Venta → comparar en UF (preferido)
-    - Arriendo → comparar en CLP (preferido)
-    """
+  <div class="container">
+    <h1>Buscaprop.cl</h1>
 
-    operacion = filtros.get("operacion")
-    max_clp = filtros.get("precio_max_clp")
-    max_uf = filtros.get("precio_max_uf")
+    <input
+      id="userInput"
+      type="text"
+      placeholder="Busca propiedades en Chile usando lenguaje natural…"
+    />
 
-    precio = prop.get("precio", {})
+    <button onclick="sendMessage()">Buscar</button>
 
-    # Si hay filtro de precio pero el precio no es visible → descartar
-    if (max_clp or max_uf) and not precio.get("visible"):
-        return False
+    <div class="muted">
+      Ejemplo: “Depto en Providencia, 3 dormitorios, hasta $900.000”
+    </div>
 
-    # -----------------------
-    # VENTA → UF
-    # -----------------------
-    if operacion == "venta" and max_uf is not None:
-        valor = precio.get("uf") or precio.get("valor")
-        if valor is None:
-            return False
-        return valor <= max_uf
+    <div id="response"></div>
+  </div>
 
-    # -----------------------
-    # ARRIENDO → CLP
-    # -----------------------
-    if operacion == "arriendo" and max_clp is not None:
-        valor = precio.get("clp") or precio.get("valor")
-        if valor is None:
-            return False
-        return valor <= max_clp
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById("userInput");
+      const responseBox = document.getElementById("response");
+      const message = input.value.trim();
 
-    return True
+      if (!message) return;
+
+      responseBox.innerText = "Pensando…";
+
+      try {
+        const res = await fetch("https://superbuscador-api.onrender.com/assistant", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ message })
+        });
+
+        if (!res.ok) {
+          throw new Error("Error de conexión con el backend");
+        }
+
+        const data = await res.json();
+
+        responseBox.innerText = JSON.stringify(data, null, 2);
+
+      } catch (err) {
+        responseBox.innerText = "Error al conectar con el buscador. Intenta nuevamente.";
+        console.error(err);
+      }
+    }
+
+    // Enter = enviar
+    document.getElementById("userInput").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    });
+  </script>
 
 </body>
 </html>
