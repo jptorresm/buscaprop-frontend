@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>v2 Buscaprop.cl</title>
+  <title>Buscaprop.cl v2.1</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
@@ -11,6 +11,7 @@
       margin: 0;
       padding: 0;
       color: #202124;
+      background: #fff;
     }
     .container {
       min-height: 90vh;
@@ -20,10 +21,6 @@
       justify-content: center;
       padding: 20px;
       text-align: center;
-    }
-    h1 {
-      font-weight: 500;
-      margin-bottom: 24px;
     }
     input {
       width: 100%;
@@ -39,170 +36,4 @@
       padding: 10px 20px;
       border-radius: 20px;
       border: 1px solid #dfe1e5;
-      background: #f8f9fa;
-      cursor: pointer;
-    }
-    #response {
-      margin-top: 32px;
-      max-width: 720px;
-      font-size: 14px;
-      line-height: 1.6;
-      text-align: left;
-      white-space: pre-wrap;
-    }
-    .muted {
-      color: #666;
-      font-size: 13px;
-      margin-top: 12px;
-    }
-  </style>
-</head>
-
-<body>
-
-  <div class="container">
-<img
-  src="/Logo%20Buscaprop.png"
-  alt="Buscaprop.cl"
-  style="
-    width:320px;
-    margin-bottom:24px;
-  "
-/>
-    <input
-      id="userInput"
-      type="text"
-      placeholder="Busca propiedades en Chile usando lenguaje natural…"
-    />
-
-    <button onclick="sendMessage()">Buscar</button>
-
-    <div class="muted">
-      Ejemplo: “Depto en Providencia, 3 dormitorios, hasta $900.000”
-    </div>
-
-    <div id="response"></div>
-  </div>
-
- <script>
-  // =========================
-  // Helpers
-  // =========================
-
-  function renderPrecio(p) {
-    if (!p || !p.precio || p.precio.valor == null) {
-      return "<em style='color:#666'>Precio a consultar</em>";
-    }
-
-    const valor = Math.round(p.precio.valor).toLocaleString("es-CL");
-
-    if (p.precio.moneda === "CLP") {
-      return `<strong>$${valor}</strong>`;
-    }
-
-    if (p.precio.moneda === "UF") {
-      return `<strong>${valor} UF</strong>`;
-    }
-
-    return "<em style='color:#666'>Precio a consultar</em>";
-  }
-
-  // =========================
-  // Main
-  // =========================
-
-  async function sendMessage() {
-    const input = document.getElementById("userInput");
-    const responseBox = document.getElementById("response");
-
-    const message = input.value.trim();
-    if (!message) return;
-
-    responseBox.innerHTML = "<em>Buscando propiedades…</em>";
-    input.value = "";
-
-    try {
-      const res = await fetch(
-        "https://superbuscador-api.onrender.com/assistant",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ message })
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error("Error de conexión con el backend");
-      }
-
-      const data = await res.json();
-
-      // =========================
-      // META (feedback humano)
-      // =========================
-
-      let metaHtml = "";
-      if (data.meta) {
-        metaHtml += `<div style="margin-bottom:16px;">`;
-        if (data.meta.interpretation) {
-          metaHtml += `<strong>${data.meta.interpretation}</strong><br>`;
-        }
-        if (data.meta.assumptions && data.meta.assumptions.length) {
-          metaHtml += `<em style="color:#666">${data.meta.assumptions.join(" · ")}</em>`;
-        }
-        metaHtml += `</div>`;
-      }
-
-      // =========================
-      // RESULTADOS
-      // =========================
-
-      if (!data.results || data.results.length === 0) {
-        responseBox.innerHTML =
-          metaHtml + "<em>No se encontraron propiedades con esos criterios.</em>";
-        return;
-      }
-
-      const resultsHtml = data.results
-        .slice(0, 10)
-        .map(p => `
-          <div style="
-            margin-bottom:16px;
-            border-bottom:1px solid #eee;
-            padding-bottom:12px;
-          ">
-            <strong>${p.operacion?.toUpperCase() || "PROPIEDAD"}</strong><br>
-
-            ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
-
-            Dorm: ${p.caracteristicas?.dormitorios ?? "-"}
-            · Baños: ${p.caracteristicas?.banos ?? "-"}<br>
-
-            Precio: ${renderPrecio(p)}<br>
-
-            <a href="${p.link}" target="_blank">Ver ficha</a>
-          </div>
-        `)
-        .join("");
-
-      responseBox.innerHTML = metaHtml + resultsHtml;
-
-    } catch (err) {
-      console.error(err);
-      responseBox.innerHTML =
-        "<em>Error al conectar con el buscador. Intenta nuevamente.</em>";
-    }
-  }
-
-  // =========================
-  // Enter = enviar
-  // =========================
-
-  document.getElementById("userInput").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") {
-      sendMessage();
-    }
-  });
-</script>
+      background:
