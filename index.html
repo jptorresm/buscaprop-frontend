@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Buscaprop.cl v3</title>
+  <title>Buscaprop.cl</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
@@ -10,64 +10,93 @@
       font-family: Arial, Helvetica, sans-serif;
       margin: 0;
       padding: 0;
+      background: #ffffff;
       color: #202124;
-      background: #fff;
     }
+
     .container {
-      min-height: 90vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 20px 120px;
       text-align: center;
     }
-    input {
-      width: 100%;
-      max-width: 640px;
-      padding: 16px 20px;
-      font-size: 16px;
-      border: 1px solid #dfe1e5;
-      border-radius: 24px;
-      outline: none;
+
+    img {
+      width: 300px;
+      margin-bottom: 32px;
     }
-    button {
-      margin-top: 16px;
-      padding: 10px 20px;
-      border-radius: 20px;
-      border: 1px solid #dfe1e5;
-      background: #f8f9fa;
-      cursor: pointer;
-    }
-    #response {
-      margin-top: 32px;
-      max-width: 720px;
-      font-size: 14px;
-      line-height: 1.6;
+
+    #chat {
       text-align: left;
+      margin-bottom: 32px;
     }
-    .system {
-      color: #555;
-      font-size: 13px;
-      margin-bottom: 12px;
-    }
-    .assistant {
+
+    .msg {
       margin-bottom: 16px;
+      line-height: 1.6;
     }
+
+    .assistant {
+      color: #202124;
+    }
+
+    .system {
+      color: #5f6368;
+      font-size: 13px;
+    }
+
+    .user {
+      text-align: right;
+      color: #1a73e8;
+    }
+
     .chip {
       display: inline-block;
       margin: 6px 6px 0 0;
       padding: 6px 12px;
       border-radius: 16px;
-      border: 1px solid #dfe1e5;
+      border: 1px solid #dadce0;
       background: #f8f9fa;
       cursor: pointer;
       font-size: 13px;
     }
+
     .result {
-      margin-bottom: 16px;
       border-bottom: 1px solid #eee;
       padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    input {
+      width: 100%;
+      max-width: 640px;
+      padding: 16px 20px;
+      font-size: 16px;
+      border-radius: 24px;
+      border: 1px solid #dfe1e5;
+      outline: none;
+    }
+
+    button {
+      margin-top: 16px;
+      padding: 10px 24px;
+      border-radius: 20px;
+      border: 1px solid #dadce0;
+      background: #f8f9fa;
+      cursor: pointer;
+    }
+
+    .input-area {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border-top: 1px solid #e0e0e0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
     }
   </style>
 </head>
@@ -75,120 +104,123 @@
 <body>
 
 <div class="container">
-  <img src="/Logo%20Buscaprop.png" alt="Buscaprop.cl" style="width:320px;margin-bottom:24px;" />
+  <img src="/Logo%20Buscaprop.png" alt="Buscaprop.cl" />
 
+  <div id="chat"></div>
+</div>
+
+<div class="input-area">
   <input
     id="userInput"
     type="text"
     placeholder="Busca propiedades en Chile usando lenguaje natural…"
   />
-  <button onclick="sendMessage()">Buscar</button>
-
-  <div id="response"></div>
+  <button onclick="handleUser()">Enviar</button>
 </div>
 
 <script>
-const API_URL = "https://superbuscador-api.onrender.com/assistant";
+const chat = document.getElementById("chat");
+const input = document.getElementById("userInput");
 
-function renderPrecio(p) {
-  if (!p?.precio?.valor) return "<em>Precio a consultar</em>";
-  const v = Math.round(p.precio.valor).toLocaleString("es-CL");
-  return p.precio.moneda === "UF" ? `${v} UF` : `$${v}`;
+function addMessage(role, text) {
+  const div = document.createElement("div");
+  div.className = `msg ${role}`;
+  div.innerHTML = text;
+  chat.appendChild(div);
+  window.scrollTo(0, document.body.scrollHeight);
 }
 
-async function sendMessage(textOverride) {
-  const input = document.getElementById("userInput");
-  const responseBox = document.getElementById("response");
+function addChips(list) {
+  list.forEach(text => {
+    const span = document.createElement("span");
+    span.className = "chip";
+    span.textContent = text;
+    span.onclick = () => handleUser(text);
+    chat.appendChild(span);
+  });
+}
 
-  const message = (textOverride ?? input.value).trim();
-  if (!message) return;
+async function talkToFrontAI(text) {
+  const res = await fetch("/ai-proxy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  });
+  return await res.json(); // { type, message | search_text }
+}
 
-  input.value = "";
-  responseBox.innerHTML = `<div class="system">Buscando…</div>`;
-
-  try {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 15000);
-
-    const res = await fetch(API_URL, {
+async function callBackend(searchText) {
+  const res = await fetch(
+    "https://superbuscador-api.onrender.com/assistant",
+    {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
-      signal: controller.signal
-    });
-
-    const data = await res.json();
-    responseBox.innerHTML = "";
-
-    // -------------------------
-    // Interpretation
-    // -------------------------
-    if (data.meta?.interpretation) {
-      responseBox.innerHTML += `
-        <div class="system">
-          Entendí: <strong>${data.meta.interpretation}</strong>
-        </div>`;
+      body: JSON.stringify({ message: searchText })
     }
+  );
+  return await res.json();
+}
 
-    // -------------------------
-    // QUESTION MODE
-    // -------------------------
-    if (data.type === "question") {
-      responseBox.innerHTML += `
-        <div class="assistant">
-          ${data.message || "Necesito un dato más para continuar."}
-        </div>`;
+function renderResults(data) {
+  if (data.meta?.interpretation) {
+    addMessage("system", `Entendí: <strong>${data.meta.interpretation}</strong>`);
+  }
 
-      if (data.meta?.suggestions) {
-        data.meta.suggestions.forEach(s => {
-          responseBox.innerHTML += `
-            <span class="chip" onclick="sendMessage('${s.replace(/'/g,"")}')">
-              ${s}
-            </span>`;
-        });
-      }
-      return;
-    }
+  if (data.type === "question") {
+    addMessage("assistant", data.message || "¿Puedes aclarar un poco más?");
+    if (data.meta?.suggestions) addChips(data.meta.suggestions);
+    return;
+  }
 
-    // -------------------------
-    // RESULTS MODE
-    // -------------------------
-    if (!data.results || data.results.length === 0) {
-      responseBox.innerHTML += `<em>No se encontraron propiedades.</em>`;
-      return;
-    }
+  if (!data.results || data.results.length === 0) {
+    addMessage("assistant", "No encontré resultados con esos criterios.");
+    return;
+  }
 
-    data.results.slice(0, 10).forEach(p => {
-      responseBox.innerHTML += `
-        <div class="result">
-          <strong>${p.operacion?.toUpperCase() || "PROPIEDAD"}</strong><br>
-          ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
-          Dorm: ${p.caracteristicas?.dormitorios ?? "-"} ·
-          Baños: ${p.caracteristicas?.banos ?? "-"}<br>
-          Precio: ${renderPrecio(p)}<br>
-          <a href="${p.link}" target="_blank">Ver ficha</a>
-        </div>`;
-    });
+  data.results.slice(0, 10).forEach(p => {
+    addMessage("assistant", `
+      <div class="result">
+        <strong>${p.operacion?.toUpperCase() || "PROPIEDAD"}</strong><br>
+        ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
+        Dorm: ${p.caracteristicas?.dormitorios ?? "-"}
+        · Baños: ${p.caracteristicas?.banos ?? "-"}<br>
+        <a href="${p.link}" target="_blank">Ver ficha</a>
+      </div>
+    `);
+  });
 
-    if (data.meta?.suggestions) {
-      responseBox.innerHTML += `<div class="system">Refinar búsqueda:</div>`;
-      data.meta.suggestions.forEach(s => {
-        responseBox.innerHTML += `
-          <span class="chip" onclick="sendMessage('${s.replace(/'/g,"")}')">
-            ${s}
-          </span>`;
-      });
-    }
-
-  } catch (err) {
-    responseBox.innerHTML =
-      "<em>Error al conectar con el buscador. Reintenta.</em>";
+  if (data.meta?.suggestions) {
+    addMessage("system", "Refinar búsqueda:");
+    addChips(data.meta.suggestions);
   }
 }
 
-document.getElementById("userInput").addEventListener("keydown", e => {
-  if (e.key === "Enter") sendMessage();
-});
+async function handleUser(forcedText) {
+  const text = forcedText || input.value.trim();
+  if (!text) return;
+
+  addMessage("user", text);
+  input.value = "";
+
+  const ai = await talkToFrontAI(text);
+
+  if (ai.type === "question") {
+    addMessage("assistant", ai.message);
+    return;
+  }
+
+  if (ai.type === "search") {
+    addMessage("system", "Buscando propiedades…");
+    const data = await callBackend(ai.search_text);
+    renderResults(data);
+  }
+}
+
+// saludo inicial
+addMessage(
+  "assistant",
+  "Hola 👋 Soy Buscaprop.cl. Cuéntame qué tipo de propiedad estás buscando."
+);
 </script>
 
 </body>
