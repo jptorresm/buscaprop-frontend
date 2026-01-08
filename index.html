@@ -84,65 +84,81 @@
     <div id="response"></div>
   </div>
 
-  <script>
-    async function sendMessage() {
-      const input = document.getElementById("userInput");
-      const responseBox = document.getElementById("response");
-      const message = input.value.trim();
+ <script>
+  let conversationContext = [];
 
-      if (!message) return;
+  async function sendMessage(extraMessage = null) {
+    const input = document.getElementById("userInput");
+    const responseBox = document.getElementById("response");
 
-      responseBox.innerText = "Pensando…";
+    const message = extraMessage ?? input.value.trim();
+    if (!message) return;
 
-      try {
-        const res = await fetch("https://superbuscador-api.onrender.com/assistant", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ message })
-        });
+    conversationContext.push({ role: "user", content: message });
 
-        if (!res.ok) {
-          throw new Error("Error de conexión con el backend");
+    responseBox.innerText = "Pensando…";
+    input.value = "";
+
+    try {
+      const res = await fetch("https://superbuscador-api.onrender.com/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message })
+      });
+
+      if (!res.ok) {
+        throw new Error("Error de conexión con el backend");
+      }
+
+      const data = await res.json();
+
+      // 👉 CASO 1: el backend hace una pregunta
+      if (data.type === "question") {
+        responseBox.innerHTML = `
+          <strong>${data.message}</strong>
+          <div class="muted">Responde para continuar</div>
+        `;
+        return;
+      }
+
+      // 👉 CASO 2: resultados
+      if (data.type === "results") {
+        if (!data.results || data.results.length === 0) {
+          responseBox.innerText = "No se encontraron propiedades.";
+          return;
         }
 
-        const data = await res.json();
+        responseBox.innerHTML = data.results
+          .slice(0, 10)
+          .map(p => `
+            <div style="margin-bottom:16px;border-bottom:1px solid #eee;padding-bottom:12px;">
+              <strong>${p.operacion?.toUpperCase() || "PROPIEDAD"}</strong><br>
+              ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
+              Dorm: ${p.caracteristicas?.dormitorios ?? "-"} · 
+              Baños: ${p.caracteristicas?.banos ?? "-"}<br>
+              <a href="${p.link}" target="_blank">Ver ficha</a>
+            </div>
+          `)
+          .join("");
+        return;
+      }
 
-if (data.type === "results") {
-  if (!data.results || data.results.length === 0) {
-    responseBox.innerText = "No se encontraron propiedades con esos criterios.";
-    return;
+      // fallback debug
+      responseBox.innerText = JSON.stringify(data, null, 2);
+
+    } catch (err) {
+      responseBox.innerText = "Error al conectar con el buscador. Intenta nuevamente.";
+      console.error(err);
+    }
   }
 
-  responseBox.innerHTML = data.results
-    .slice(0, 10)
-    .map(p => `
-      <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee;">
-        <strong>${p.operacion?.toUpperCase() || "Propiedad"}</strong><br>
-        ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
-        Dormitorios: ${p.caracteristicas?.dormitorios ?? "-"} · Baños: ${p.caracteristicas?.banos ?? "-"}<br>
-        <a href="${p.link}" target="_blank">Ver ficha</a>
-      </div>
-    `)
-    .join("");
-} else {
-  responseBox.innerText = JSON.stringify(data, null, 2);
-}
-
-      } catch (err) {
-        responseBox.innerText = "Error al conectar con el buscador. Intenta nuevamente.";
-        console.error(err);
-      }
+  // Enter = enviar
+  document.getElementById("userInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      sendMessage();
     }
-
-    // Enter = enviar
-    document.getElementById("userInput").addEventListener("keydown", function (e) {
-      if (e.key === "Enter") {
-        sendMessage();
-      }
-    });
-  </script>
+  });
+</script>
 
 </body>
 </html>
