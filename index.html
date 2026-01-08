@@ -85,26 +85,53 @@
   </div>
 
  <script>
-  let conversationContext = [];
+  // =========================
+  // Helpers
+  // =========================
 
-  async function sendMessage(extraMessage = null) {
+  function renderPrecio(p) {
+    if (!p || !p.precio || p.precio.valor == null) {
+      return "<em style='color:#666'>Precio a consultar</em>";
+    }
+
+    const valor = Math.round(p.precio.valor).toLocaleString("es-CL");
+
+    if (p.precio.moneda === "CLP") {
+      return `<strong>$${valor}</strong>`;
+    }
+
+    if (p.precio.moneda === "UF") {
+      return `<strong>${valor} UF</strong>`;
+    }
+
+    return "<em style='color:#666'>Precio a consultar</em>";
+  }
+
+  // =========================
+  // Main
+  // =========================
+
+  async function sendMessage() {
     const input = document.getElementById("userInput");
     const responseBox = document.getElementById("response");
 
-    const message = extraMessage ?? input.value.trim();
+    const message = input.value.trim();
     if (!message) return;
 
-    conversationContext.push({ role: "user", content: message });
-
-    responseBox.innerText = "Pensando…";
+    responseBox.innerHTML = "<em>Buscando propiedades…</em>";
     input.value = "";
 
     try {
-      const res = await fetch("https://superbuscador-api.onrender.com/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message })
-      });
+      const res = await fetch(
+        "https://superbuscador-api.onrender.com/assistant",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ message })
+        }
+      );
 
       if (!res.ok) {
         throw new Error("Error de conexión con el backend");
@@ -112,53 +139,70 @@
 
       const data = await res.json();
 
-      // 👉 CASO 1: el backend hace una pregunta
-      if (data.type === "question") {
-        responseBox.innerHTML = `
-          <strong>${data.message}</strong>
-          <div class="muted">Responde para continuar</div>
-        `;
-        return;
-      }
+      // =========================
+      // META (feedback humano)
+      // =========================
 
-      // 👉 CASO 2: resultados
-      if (data.type === "results") {
-        if (!data.results || data.results.length === 0) {
-          responseBox.innerText = "No se encontraron propiedades.";
-          return;
+      let metaHtml = "";
+      if (data.meta) {
+        metaHtml += `<div style="margin-bottom:16px;">`;
+        if (data.meta.interpretation) {
+          metaHtml += `<strong>${data.meta.interpretation}</strong><br>`;
         }
+        if (data.meta.assumptions && data.meta.assumptions.length) {
+          metaHtml += `<em style="color:#666">${data.meta.assumptions.join(" · ")}</em>`;
+        }
+        metaHtml += `</div>`;
+      }
 
-        responseBox.innerHTML = data.results
-          .slice(0, 10)
-          .map(p => `
-            <div style="margin-bottom:16px;border-bottom:1px solid #eee;padding-bottom:12px;">
-              <strong>${p.operacion?.toUpperCase() || "PROPIEDAD"}</strong><br>
-              ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
-              Dorm: ${p.caracteristicas?.dormitorios ?? "-"} · 
-              Baños: ${p.caracteristicas?.banos ?? "-"}<br>
-              <a href="${p.link}" target="_blank">Ver ficha</a>
-            </div>
-          `)
-          .join("");
+      // =========================
+      // RESULTADOS
+      // =========================
+
+      if (!data.results || data.results.length === 0) {
+        responseBox.innerHTML =
+          metaHtml + "<em>No se encontraron propiedades con esos criterios.</em>";
         return;
       }
 
-      // fallback debug
-      responseBox.innerText = JSON.stringify(data, null, 2);
+      const resultsHtml = data.results
+        .slice(0, 10)
+        .map(p => `
+          <div style="
+            margin-bottom:16px;
+            border-bottom:1px solid #eee;
+            padding-bottom:12px;
+          ">
+            <strong>${p.operacion?.toUpperCase() || "PROPIEDAD"}</strong><br>
+
+            ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
+
+            Dorm: ${p.caracteristicas?.dormitorios ?? "-"}
+            · Baños: ${p.caracteristicas?.banos ?? "-"}<br>
+
+            Precio: ${renderPrecio(p)}<br>
+
+            <a href="${p.link}" target="_blank">Ver ficha</a>
+          </div>
+        `)
+        .join("");
+
+      responseBox.innerHTML = metaHtml + resultsHtml;
 
     } catch (err) {
-      responseBox.innerText = "Error al conectar con el buscador. Intenta nuevamente.";
       console.error(err);
+      responseBox.innerHTML =
+        "<em>Error al conectar con el buscador. Intenta nuevamente.</em>";
     }
   }
 
+  // =========================
   // Enter = enviar
+  // =========================
+
   document.getElementById("userInput").addEventListener("keydown", function (e) {
     if (e.key === "Enter") {
       sendMessage();
     }
   });
 </script>
-
-</body>
-</html>
