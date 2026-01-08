@@ -109,7 +109,26 @@
 
         const data = await res.json();
 
-        responseBox.innerText = JSON.stringify(data, null, 2);
+if (data.type === "results") {
+  if (!data.results || data.results.length === 0) {
+    responseBox.innerText = "No se encontraron propiedades con esos criterios.";
+    return;
+  }
+
+  responseBox.innerHTML = data.results
+    .slice(0, 10)
+    .map(p => `
+      <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee;">
+        <strong>${p.operacion?.toUpperCase() || "Propiedad"}</strong><br>
+        ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
+        Dormitorios: ${p.caracteristicas?.dormitorios ?? "-"} · Baños: ${p.caracteristicas?.banos ?? "-"}<br>
+        <a href="${p.link}" target="_blank">Ver ficha</a>
+      </div>
+    `)
+    .join("");
+} else {
+  responseBox.innerText = JSON.stringify(data, null, 2);
+}
 
       } catch (err) {
         responseBox.innerText = "Error al conectar con el buscador. Intenta nuevamente.";
