@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Buscaprop.cl v2.1</title>
+  <title>Buscaprop.cl v3</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
@@ -36,4 +36,160 @@
       padding: 10px 20px;
       border-radius: 20px;
       border: 1px solid #dfe1e5;
-      background:
+      background: #f8f9fa;
+      cursor: pointer;
+    }
+    #response {
+      margin-top: 32px;
+      max-width: 720px;
+      font-size: 14px;
+      line-height: 1.6;
+      text-align: left;
+    }
+    .system {
+      color: #555;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .assistant {
+      margin-bottom: 16px;
+    }
+    .chip {
+      display: inline-block;
+      margin: 6px 6px 0 0;
+      padding: 6px 12px;
+      border-radius: 16px;
+      border: 1px solid #dfe1e5;
+      background: #f8f9fa;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .result {
+      margin-bottom: 16px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <img src="/Logo%20Buscaprop.png" alt="Buscaprop.cl" style="width:320px;margin-bottom:24px;" />
+
+  <input
+    id="userInput"
+    type="text"
+    placeholder="Busca propiedades en Chile usando lenguaje natural…"
+  />
+  <button onclick="sendMessage()">Buscar</button>
+
+  <div id="response"></div>
+</div>
+
+<script>
+const API_URL = "https://superbuscador-api.onrender.com/assistant";
+
+function renderPrecio(p) {
+  if (!p?.precio?.valor) return "<em>Precio a consultar</em>";
+  const v = Math.round(p.precio.valor).toLocaleString("es-CL");
+  return p.precio.moneda === "UF" ? `${v} UF` : `$${v}`;
+}
+
+async function sendMessage(textOverride) {
+  const input = document.getElementById("userInput");
+  const responseBox = document.getElementById("response");
+
+  const message = (textOverride ?? input.value).trim();
+  if (!message) return;
+
+  input.value = "";
+  responseBox.innerHTML = `<div class="system">Buscando…</div>`;
+
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 15000);
+
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+      signal: controller.signal
+    });
+
+    const data = await res.json();
+    responseBox.innerHTML = "";
+
+    // -------------------------
+    // Interpretation
+    // -------------------------
+    if (data.meta?.interpretation) {
+      responseBox.innerHTML += `
+        <div class="system">
+          Entendí: <strong>${data.meta.interpretation}</strong>
+        </div>`;
+    }
+
+    // -------------------------
+    // QUESTION MODE
+    // -------------------------
+    if (data.type === "question") {
+      responseBox.innerHTML += `
+        <div class="assistant">
+          ${data.message || "Necesito un dato más para continuar."}
+        </div>`;
+
+      if (data.meta?.suggestions) {
+        data.meta.suggestions.forEach(s => {
+          responseBox.innerHTML += `
+            <span class="chip" onclick="sendMessage('${s.replace(/'/g,"")}')">
+              ${s}
+            </span>`;
+        });
+      }
+      return;
+    }
+
+    // -------------------------
+    // RESULTS MODE
+    // -------------------------
+    if (!data.results || data.results.length === 0) {
+      responseBox.innerHTML += `<em>No se encontraron propiedades.</em>`;
+      return;
+    }
+
+    data.results.slice(0, 10).forEach(p => {
+      responseBox.innerHTML += `
+        <div class="result">
+          <strong>${p.operacion?.toUpperCase() || "PROPIEDAD"}</strong><br>
+          ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
+          Dorm: ${p.caracteristicas?.dormitorios ?? "-"} ·
+          Baños: ${p.caracteristicas?.banos ?? "-"}<br>
+          Precio: ${renderPrecio(p)}<br>
+          <a href="${p.link}" target="_blank">Ver ficha</a>
+        </div>`;
+    });
+
+    if (data.meta?.suggestions) {
+      responseBox.innerHTML += `<div class="system">Refinar búsqueda:</div>`;
+      data.meta.suggestions.forEach(s => {
+        responseBox.innerHTML += `
+          <span class="chip" onclick="sendMessage('${s.replace(/'/g,"")}')">
+            ${s}
+          </span>`;
+      });
+    }
+
+  } catch (err) {
+    responseBox.innerHTML =
+      "<em>Error al conectar con el buscador. Reintenta.</em>";
+  }
+}
+
+document.getElementById("userInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") sendMessage();
+});
+</script>
+
+</body>
+</html>
