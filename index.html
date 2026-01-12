@@ -63,15 +63,8 @@
       font-size: 14px;
     }
 
-    /* ===== Conversación ===== */
-
-    .row {
-      margin: 8px 0;
-    }
-
-    .row.user {
-      text-align: right;
-    }
+    .row { margin: 8px 0; }
+    .row.user { text-align: right; }
 
     .bubble {
       display: inline-block;
@@ -82,31 +75,39 @@
       font-size: 14px;
     }
 
-    .bubble.system {
-      background: #f1f3f4;
-    }
+    .bubble.system { background: #f1f3f4; }
+    .bubble.user { background: #e8f0fe; }
 
-    .bubble.user {
-      background: #e8f0fe;
-    }
-
-    /* ===== Chips ===== */
-
-    .chips {
-      margin: 6px 0 10px 0;
-    }
+    .chips { margin: 10px 0 14px 0; }
 
     .chips button {
-      margin: 4px 4px 0 0;
-      padding: 6px 12px;
-      border-radius: 16px;
+      margin: 4px 6px 0 0;
+      padding: 7px 14px;
+      border-radius: 18px;
       border: 1px solid #dadce0;
       background: #fff;
       cursor: pointer;
       font-size: 13px;
     }
 
-    /* ===== Video ===== */
+    .chips button.primary {
+      background: #e8f0fe;
+      border-color: #c6dafc;
+    }
+
+    .searching {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      margin: 14px 0;
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 14px;
+      font-size: 13px;
+    }
+
+    .searching img { width: 36px; height: 36px; }
 
     .video-wrapper {
       margin: 16px 0;
@@ -120,14 +121,6 @@
       width: 100%;
       border-radius: 12px;
     }
-
-    .video-caption {
-      margin-top: 8px;
-      font-size: 13px;
-      color: #555;
-    }
-
-    /* ===== Tarjetas ===== */
 
     .card-wide {
       border-bottom: 1px solid #e6e6e6;
@@ -153,190 +146,141 @@
       font-size: 13px;
     }
 
-    .card-main {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .card-location {
-      color: #666;
-      font-size: 13px;
-    }
-
-    .card-price {
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .badge {
-      font-size: 11px;
-      color: #1a73e8;
-      font-weight: 600;
-    }
-
-    .card-wide a {
-      text-decoration: none;
-      color: #1a73e8;
-      font-weight: 500;
-    }
+    .card-location { font-size: 13px; color: #666; }
+    .card-price { font-weight: 600; white-space: nowrap; }
   </style>
 </head>
 
 <body>
-  <div class="container">
-    <header>
-      <img src="Logo Buscaprop.png" alt="Buscaprop.cl" />
-    </header>
+<div class="container">
+  <header>
+    <img src="Logo Buscaprop.png" alt="Buscaprop.cl">
+  </header>
 
-    <div id="chat"></div>
+  <div id="chat"></div>
 
-    <div class="input-bar">
-      <input id="userInput" type="text" placeholder="Cuéntame qué propiedad buscas…" />
-      <button onclick="sendMessage()">Enviar</button>
-    </div>
+  <div class="input-bar">
+    <input id="userInput" placeholder="Cuéntame qué propiedad buscas…">
+    <button onclick="sendMessage()">Enviar</button>
   </div>
+</div>
 
-  <script>
-    const API_URL = "https://superbuscador-api.onrender.com/assistant";
-    const chat = document.getElementById("chat");
-    const input = document.getElementById("userInput");
+<script>
+const API_URL = "https://superbuscador-api.onrender.com/assistant";
+const chat = document.getElementById("chat");
+const input = document.getElementById("userInput");
+let searchStepInterval = null;
 
-    function addBubble(text, who = "system") {
-      const row = document.createElement("div");
-      row.className = "row " + who;
+function addBubble(text, who="system") {
+  const row = document.createElement("div");
+  row.className = "row " + who;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble " + who;
+  bubble.innerHTML = text;
+  row.appendChild(bubble);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
 
-      const bubble = document.createElement("div");
-      bubble.className = "bubble " + who;
-      bubble.innerHTML = text;
+function renderOptions(options) {
+  const wrap = document.createElement("div");
+  wrap.className = "chips";
+  options.forEach(opt => {
+    const b = document.createElement("button");
+    b.textContent = opt.label;
+    if (opt.primary) b.classList.add("primary");
+    b.onclick = () => opt.action();
+    wrap.appendChild(b);
+  });
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
 
-      row.appendChild(bubble);
-      chat.appendChild(row);
-      chat.scrollTop = chat.scrollHeight;
-    }
+function renderSearching() {
+  const div = document.createElement("div");
+  div.className = "searching";
+  div.id = "searching";
+  div.innerHTML = `
+    <img src="processing.gif">
+    <div>
+      <strong>Procesando búsqueda</strong><br>
+      <span id="step">Interpretando criterios…</span>
+    </div>`;
+  chat.appendChild(div);
 
-    function renderChips(options = []) {
-      if (!options.length) return;
-      const wrap = document.createElement("div");
-      wrap.className = "chips";
-      options.forEach(opt => {
-        const btn = document.createElement("button");
-        btn.textContent = opt;
-        btn.onclick = () => sendMessage(opt);
-        wrap.appendChild(btn);
-      });
-      chat.appendChild(wrap);
-      chat.scrollTop = chat.scrollHeight;
-    }
+  const steps = [
+    "Interpretando criterios…",
+    "Normalizando filtros…",
+    "Evaluando fuentes de datos…",
+    "Filtrando ruido…",
+    "Priorizando resultados…"
+  ];
+  let i = 0;
+  searchStepInterval = setInterval(() => {
+    document.getElementById("step").textContent = steps[++i % steps.length];
+  }, 900);
+}
 
-    function renderVideo() {
-      const wrap = document.createElement("div");
-      wrap.className = "video-wrapper";
-      wrap.innerHTML = `
-        <video controls>
-          <source src="personal-shopper.mp4" type="video/mp4">
-        </video>
-        <div class="video-caption">
-          Tomé tu pedido y estoy revisando opciones. Si aparece algo nuevo, te aviso.
-        </div>
-      `;
-      chat.appendChild(wrap);
-    }
+function stopSearching() {
+  clearInterval(searchStepInterval);
+  document.getElementById("searching")?.remove();
+}
 
-    function renderResults(results) {
-      const top3 = results.slice(0, 3);
-      const rest = results.slice(3, 10);
+function isHighValue(results) {
+  return results.some(p =>
+    (p.operacion==="venta" && p.precio?.moneda==="UF" && p.precio.valor>=5000) ||
+    (p.operacion==="arriendo" && p.precio?.moneda==="CLP" && p.precio.valor>=1200000)
+  );
+}
 
-      addBubble(
-        "Estas son las opciones que mejor calzan con lo que me pediste:",
-        "system"
-      );
+function renderIntentQuestion(results) {
+  addBubble("Para evaluar si corresponde pasar a una asistencia más completa:<br><br>¿Qué tan decidido estás a concretar esta búsqueda en el corto plazo?");
+  renderOptions([
+    {label:"Estoy evaluando, sin apuro", action:()=>continueAuto()},
+    {label:"Quiero avanzar en los próximos meses", action:()=>continueAuto()},
+    {label:"Estoy listo para avanzar pronto", primary:true, action:()=>renderWhatsApp()}
+  ]);
+}
 
-      top3.forEach(p => renderCard(p, true));
+function continueAuto() {
+  addBubble("Perfecto. Continuamos con el proceso automático y seguimiento activo.");
+}
 
-      if (rest.length) {
-        addBubble("Otras opciones disponibles:", "system");
-        rest.forEach(p => renderCard(p, false));
-      }
-    }
+function renderWhatsApp() {
+  addBubble("Esta búsqueda califica para asistencia directa.");
+  addBubble(
+    `<a href="https://wa.me/56966370680" target="_blank"
+    style="display:inline-block;padding:10px 16px;background:#1a73e8;color:#fff;border-radius:18px;text-decoration:none">
+    Continuar por WhatsApp</a>`
+  );
+}
 
-    function renderCard(p, highlight = false) {
-      const card = document.createElement("div");
-      card.className = "card-wide" + (highlight ? " highlight" : "");
+async function sendMessage() {
+  const text = input.value.trim();
+  if(!text) return;
+  addBubble(text,"user");
+  input.value="";
+  renderSearching();
 
-      const precio = p.precio?.valor
-        ? (p.precio.moneda === "UF"
-            ? `${Math.round(p.precio.valor)} UF`
-            : `$${Math.round(p.precio.valor).toLocaleString("es-CL")}`)
-        : "Precio a consultar";
+  const res = await fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({message:text})
+  });
+  const data = await res.json();
+  stopSearching();
 
-      const dorm = p.dormitorios ?? p.caracteristicas?.dormitorios ?? "-";
-      const banos = p.banos ?? p.caracteristicas?.banos ?? "-";
-
-      card.innerHTML = `
-        <div class="card-row">
-          <div class="card-main">
-            <strong>${p.tipo || "Depto"} · ${p.operacion}</strong>
-            <span class="card-location">
-              ${p.comuna || p.ubicacion?.comuna || ""}
-              ${highlight ? '<span class="badge"> · Seleccionada</span>' : ""}
-            </span>
-          </div>
-          <div class="card-price">${precio}</div>
-        </div>
-        <div class="card-row secondary">
-          <span>${dorm} dorm · ${banos} baños</span>
-          <a href="${p.link}" target="_blank">Ver ficha</a>
-        </div>
-      `;
-
-      chat.appendChild(card);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    async function sendMessage(textOverride = null) {
-      const text = textOverride || input.value.trim();
-      if (!text) return;
-
-      addBubble(text, "user");
-      input.value = "";
-
-      addBubble("Tomando tu pedido y revisando opciones…", "system");
-
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
-      });
-
-      const data = await res.json();
-      chat.lastChild.remove();
-
-      if (data.meta?.interpretation) {
-        addBubble(data.meta.interpretation, "system");
-      }
-
-      if (data.type === "results" && data.results?.length) {
-        renderVideo();
-        renderResults(data.results);
-
-        addBubble("¿Cómo seguimos con esta búsqueda?", "system");
-        renderChips([
-          "Ajustar presupuesto",
-          "Cambiar comuna",
-          "Quedarme con 2 opciones",
-          "Seguir buscando"
-        ]);
-      }
-    }
-
-    input.addEventListener("keydown", e => {
-      if (e.key === "Enter") sendMessage();
+  if(data.type==="results") {
+    addBubble("Resultados priorizados:");
+    data.results.slice(0,5).forEach(p=>{
+      addBubble(`${p.tipo||"Propiedad"} · ${p.operacion} · ${p.precio?.valor||"—"} ${p.precio?.moneda||""}`);
     });
+    addBubble("Seguimiento activo. Puedes volver por novedades.");
+    if(isHighValue(data.results)) renderIntentQuestion(data.results);
+  }
+}
 
-    addBubble(
-      "Cuéntame qué propiedad buscas. Yo tomo el encargo y sigo trabajando por ti.",
-      "system"
-    );
-  </script>
+addBubble("Cuéntame qué propiedad buscas. Tomo el encargo y priorizo opciones relevantes.");
+</script>
 </body>
 </html>
