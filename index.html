@@ -17,211 +17,265 @@
     .container {
       max-width: 760px;
       margin: 0 auto;
-      padding: 40px 20px 120px;
-      text-align: center;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
     }
 
-    img {
-      width: 300px;
-      margin-bottom: 32px;
+    header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    header img {
+      width: 260px;
+      margin-bottom: 8px;
     }
 
     #chat {
-      text-align: left;
-      margin-bottom: 32px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 4px;
     }
 
-    .msg {
-      margin-bottom: 16px;
-      line-height: 1.6;
+    .input-bar {
+      display: flex;
+      gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
     }
 
-    .assistant {
-      color: #202124;
-    }
-
-    .system {
-      color: #5f6368;
-      font-size: 13px;
-    }
-
-    .user {
-      text-align: right;
-      color: #1a73e8;
-    }
-
-    .chip {
-      display: inline-block;
-      margin: 6px 6px 0 0;
-      padding: 6px 12px;
-      border-radius: 16px;
-      border: 1px solid #dadce0;
-      background: #f8f9fa;
-      cursor: pointer;
-      font-size: 13px;
-    }
-
-    .result {
-      border-bottom: 1px solid #eee;
-      padding-bottom: 12px;
-      margin-bottom: 16px;
-    }
-
-    input {
-      width: 100%;
-      max-width: 640px;
-      padding: 16px 20px;
-      font-size: 16px;
+    .input-bar input {
+      flex: 1;
+      padding: 14px 16px;
       border-radius: 24px;
       border: 1px solid #dfe1e5;
+      font-size: 15px;
       outline: none;
     }
 
-    button {
-      margin-top: 16px;
-      padding: 10px 24px;
-      border-radius: 20px;
-      border: 1px solid #dadce0;
+    .input-bar button {
+      padding: 0 20px;
+      border-radius: 24px;
+      border: 1px solid #dfe1e5;
       background: #f8f9fa;
       cursor: pointer;
+      font-size: 14px;
     }
 
-    .input-area {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: #ffffff;
-      border-top: 1px solid #e0e0e0;
-      padding: 16px;
-      display: flex;
-      justify-content: center;
-      gap: 12px;
+    .bubble {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 16px;
+      max-width: 80%;
+      line-height: 1.4;
+      font-size: 14px;
+    }
+
+    .bubble.system {
+      background: #f1f3f4;
+    }
+
+    .bubble.user {
+      background: #e8f0fe;
+    }
+
+    .row {
+      margin: 10px 0;
+    }
+
+    .row.user {
+      text-align: right;
+    }
+
+    .chips {
+      margin: 8px 0;
+    }
+
+    .chips button {
+      margin: 4px 4px 0 0;
+      padding: 6px 12px;
+      border-radius: 16px;
+      border: 1px solid #dadce0;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .card {
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+
+    .card a {
+      text-decoration: none;
+      color: #1a73e8;
+      font-weight: 500;
     }
   </style>
 </head>
 
 <body>
+  <div class="container">
+    <header>
+      <!-- Si no tienes logo, puedes borrar la imagen -->
+      <img src="Logo Buscaprop.png" alt="Buscaprop.cl" />
+    </header>
 
-<div class="container">
-  <img src="/Logo%20Buscaprop.png" alt="Buscaprop.cl" />
+    <div id="chat"></div>
 
-  <div id="chat"></div>
-</div>
+    <div class="input-bar">
+      <input
+        id="userInput"
+        type="text"
+        placeholder="Cuéntame qué propiedad buscas…"
+      />
+      <button onclick="sendMessage()">Enviar</button>
+    </div>
+  </div>
 
-<div class="input-area">
-  <input
-    id="userInput"
-    type="text"
-    placeholder="Busca propiedades en Chile usando lenguaje natural…"
-  />
-  <button onclick="handleUser()">Enviar</button>
-</div>
+  <script>
+    const API_URL = "https://superbuscador-api.onrender.com/assistant";
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("userInput");
 
-<script>
-const chat = document.getElementById("chat");
-const input = document.getElementById("userInput");
+    // ---------- UI helpers ----------
 
-function addMessage(role, text) {
-  const div = document.createElement("div");
-  div.className = `msg ${role}`;
-  div.innerHTML = text;
-  chat.appendChild(div);
-  window.scrollTo(0, document.body.scrollHeight);
-}
+    function addBubble(text, who = "system") {
+      const row = document.createElement("div");
+      row.className = "row " + who;
 
-function addChips(list) {
-  list.forEach(text => {
-    const span = document.createElement("span");
-    span.className = "chip";
-    span.textContent = text;
-    span.onclick = () => handleUser(text);
-    chat.appendChild(span);
-  });
-}
+      const bubble = document.createElement("div");
+      bubble.className = "bubble " + who;
+      bubble.innerHTML = text;
 
-async function talkToFrontAI(text) {
-  const res = await fetch("/ai-proxy", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text })
-  });
-  return await res.json(); // { type, message | search_text }
-}
-
-async function callBackend(searchText) {
-  const res = await fetch(
-    "https://superbuscador-api.onrender.com/assistant",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: searchText })
+      row.appendChild(bubble);
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
     }
-  );
-  return await res.json();
-}
 
-function renderResults(data) {
-  if (data.meta?.interpretation) {
-    addMessage("system", `Entendí: <strong>${data.meta.interpretation}</strong>`);
-  }
+    function renderChips(options = []) {
+      if (!options.length) return;
 
-  if (data.type === "question") {
-    addMessage("assistant", data.message || "¿Puedes aclarar un poco más?");
-    if (data.meta?.suggestions) addChips(data.meta.suggestions);
-    return;
-  }
+      const wrap = document.createElement("div");
+      wrap.className = "chips";
 
-  if (!data.results || data.results.length === 0) {
-    addMessage("assistant", "No encontré resultados con esos criterios.");
-    return;
-  }
+      options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.textContent = opt;
+        btn.onclick = () => sendMessage(opt);
+        wrap.appendChild(btn);
+      });
 
-  data.results.slice(0, 10).forEach(p => {
-    addMessage("assistant", `
-      <div class="result">
-        <strong>${p.operacion?.toUpperCase() || "PROPIEDAD"}</strong><br>
-        ${p.ubicacion?.comuna || ""} ${p.ubicacion?.sector || ""}<br>
-        Dorm: ${p.caracteristicas?.dormitorios ?? "-"}
-        · Baños: ${p.caracteristicas?.banos ?? "-"}<br>
-        <a href="${p.link}" target="_blank">Ver ficha</a>
-      </div>
-    `);
-  });
+      chat.appendChild(wrap);
+      chat.scrollTop = chat.scrollHeight;
+    }
 
-  if (data.meta?.suggestions) {
-    addMessage("system", "Refinar búsqueda:");
-    addChips(data.meta.suggestions);
-  }
-}
+    function renderResults(results) {
+      results.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "card";
 
-async function handleUser(forcedText) {
-  const text = forcedText || input.value.trim();
-  if (!text) return;
+        const precio = p.precio?.valor
+          ? "$" + Math.round(p.precio.valor).toLocaleString("es-CL")
+          : "A consultar";
 
-  addMessage("user", text);
-  input.value = "";
+        card.innerHTML = `
+          <strong>${p.tipo || "Propiedad"} · ${p.operacion}</strong><br>
+          ${p.comuna || p.ubicacion?.comuna || ""}<br>
+          Dorm: ${p.dormitorios ?? p.caracteristicas?.dormitorios ?? "-"}
+          · Baños: ${p.banos ?? p.caracteristicas?.banos ?? "-"}<br>
+          Precio: <strong>${precio}</strong><br>
+          <a href="${p.link}" target="_blank">Ver ficha</a>
+        `;
 
-  const ai = await talkToFrontAI(text);
+        chat.appendChild(card);
+      });
 
-  if (ai.type === "question") {
-    addMessage("assistant", ai.message);
-    return;
-  }
+      chat.scrollTop = chat.scrollHeight;
+    }
 
-  if (ai.type === "search") {
-    addMessage("system", "Buscando propiedades…");
-    const data = await callBackend(ai.search_text);
-    renderResults(data);
-  }
-}
+    // ---------- Conversación ----------
 
-// saludo inicial
-addMessage(
-  "assistant",
-  "Hola 👋 Soy Buscaprop.cl. Cuéntame qué tipo de propiedad estás buscando."
-);
-</script>
+    async function sendMessage(textOverride = null) {
+      const text = textOverride || input.value.trim();
+      if (!text) return;
 
+      addBubble(text, "user");
+      input.value = "";
+
+      addBubble("Tomando tu pedido y revisando opciones disponibles…", "system");
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text })
+        });
+
+        const data = await res.json();
+
+        // quitar mensaje de estado
+        chat.lastChild.remove();
+
+        if (data.meta?.interpretation) {
+          addBubble(data.meta.interpretation, "system");
+        }
+
+        if (data.type === "question") {
+          addBubble(data.message || "Necesito confirmar un dato para seguir.", "system");
+          renderChips(data.meta?.suggestions || []);
+          return;
+        }
+
+        if (data.type === "results") {
+          if (!data.results || data.results.length === 0) {
+            addBubble(
+              "Con lo que me pediste no encontré opciones reales por ahora.",
+              "system"
+            );
+            renderChips(data.meta?.suggestions || []);
+            return;
+          }
+
+          addBubble(
+            `Encontré ${data.results.length} opciones que calzan con tu pedido.`,
+            "system"
+          );
+
+          renderResults(data.results);
+
+          addBubble(
+            "Si quieres, podemos ajustar algo o seguir afinando el encargo.",
+            "system"
+          );
+          renderChips(data.meta?.suggestions || []);
+        }
+
+      } catch (err) {
+        console.error(err);
+        chat.lastChild.remove();
+        addBubble(
+          "Hubo un problema al consultar el buscador. Intenta nuevamente.",
+          "system"
+        );
+      }
+    }
+
+    // Enter = enviar
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    // Mensaje inicial
+    addBubble(
+      "Cuéntame qué propiedad buscas. Yo me encargo de ordenar el pedido y revisar opciones reales.",
+      "system"
+    );
+  </script>
 </body>
 </html>
